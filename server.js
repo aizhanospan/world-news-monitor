@@ -120,15 +120,15 @@ function heuristic(item) {
 }
 
 function heuristicOut(item, category, urgent) {
-  const dup = item.title && item.text.startsWith(item.title.slice(0, 40));
-  const summary = dup ? item.title : (item.title ? `${item.title}. ` : '') + item.text;
+  // Google News дописывает к заголовку « - AP News» / « - apnews.com» и повторяет его в тексте
+  const title = (item.title || '').replace(/\s+-\s+[\w.& ]{2,30}$/, '');
+  const dup = title && item.text.startsWith(title.slice(0, 40));
+  const summary = dup ? title : (title ? `${title}. ` : '') + item.text;
   return { summary: summary.slice(0, 400), category, urgent, translated: false };
 }
 
 async function enrich(item) {
   const base = heuristic(item);
-  // убираем хвост « - AP News» / « - Reuters» от Google News
-  base.summary = base.summary.replace(/\s+-\s+(AP News|Reuters|AP)\s*$/, '');
   let out = base;
   if (KEY) {
     try {
