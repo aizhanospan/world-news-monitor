@@ -212,7 +212,11 @@ if (buildAt > -1) {
   if (process.env.PREV_URL) {
     try {
       news = (await (await fetch(process.env.PREV_URL, { signal: AbortSignal.timeout(15000) })).json()).news || [];
-      news.forEach((n) => seen.add(n.id));
+      news.forEach((n) => {
+        seen.add(n.id);
+        // карточки, собранные до исправления: «Заголовок - apnews.com. Заголовок apnews.com» → «Заголовок»
+        if (!n.translated) n.summary = n.summary.replace(/^(.+?)\s+-\s+[\w.& ]{2,30}(\.\s+\1\s+[\w.& ]{2,30})?$/, '$1');
+      });
     } catch (e) { console.error('Прошлая лента:', e.message); }
   }
   await poll();
