@@ -1,25 +1,16 @@
 {
-  "note": "Адреса RSS и Telegram-каналов проверьте и поправьте под себя. Для Reuters/AP/IDF/КСИР официального RSS нет — используется Google News по домену.",
+  "note": "Только прямые источники: RSS или карта новостей самого сайта, API сайта, официальные Telegram-каналы. AP (защита сайта от ботов) и сайты IDF/КСИР напрямую недоступны — IDF и КСИР берутся из их Telegram-каналов.",
   "sites": [
-    { "name": "BBC", "rss": "http://feeds.bbci.co.uk/news/world/rss.xml" },
-    { "name": "CNN", "rss": "http://rss.cnn.com/rss/edition_world.rss" },
-    { "name": "Reuters", "rss": "https://news.google.com/rss/search?q=site:reuters.com+when:1d&hl=en-US&gl=US&ceid=US:en" },
-    { "name": "AP", "rss": "https://news.google.com/rss/search?q=site:apnews.com+when:1d&hl=en-US&gl=US&ceid=US:en" },
-    { "name": "ВОЗ", "rss": "https://www.who.int/rss-feeds/news-english.xml" },
+    { "name": "BBC", "rss": "https://feeds.bbci.co.uk/news/world/rss.xml" },
+    { "name": "CNN", "sitemap": "https://edition.cnn.com/sitemaps/cnn/news.xml", "include": "cnn.com/20[0-9][0-9]/[0-9/]+/(world|politics|business|us|weather|tech|climate|health)/" },
+    { "name": "Reuters", "sitemap": "https://www.reuters.com/arc/outboundfeeds/news-sitemap/?outputType=xml", "include": "reuters.com/(world|business|markets|technology|science|sustainability)/" },
+    { "name": "ВОЗ", "type": "who" },
     { "name": "ООН", "rss": "https://news.un.org/feed/subscribe/en/news/all/rss.xml" },
-    { "name": "МАГАТЭ", "rss": "https://www.iaea.org/feeds/topnews" },
-    { "name": "IDF", "rss": "https://news.google.com/rss/search?q=site:idf.il+when:2d&hl=en-US&gl=US&ceid=US:en" },
-    { "name": "КСИР", "rss": "https://news.google.com/rss/search?q=site:sepahnews.ir+OR+IRGC+when:1d&hl=en-US&gl=US&ceid=US:en" }
+    { "name": "МАГАТЭ", "rss": "https://www.iaea.org/feeds/topnews" }
   ],
   "telegram": [
-    { "name": "BBC (TG)", "channel": "bbcnews" },
-    { "name": "CNN (TG)", "channel": "cnn" },
-    { "name": "Reuters (TG)", "channel": "reuters" },
-    { "name": "AP (TG)", "channel": "AP" },
-    { "name": "ВОЗ (TG)", "channel": "who" },
-    { "name": "ООН (TG)", "channel": "UnitedNations" },
-    { "name": "МАГАТЭ (TG)", "channel": "iaeaorg" },
+    { "name": "BBC Русская служба (TG)", "channel": "bbcrussian" },
     { "name": "IDF (TG)", "channel": "idfofficial" },
-    { "name": "КСИР (TG)", "channel": "sepah_news" }
+    { "name": "КСИР (TG)", "channel": "sepah_pasdaran" }
   ]
 }

@@ -56,7 +56,7 @@ function chips(){
 function card(n,isNew){
   const tn=n.tags.map(id=>(topics.find(t=>t.id===id)||{}).name).filter(Boolean);
   return `<div class="card${n.urgent?' urgent':''}${isNew?' new':''}" style="--c:var(--${n.category})">
-  <div class="meta"><span>${hm(n.time)}</span><span>${esc(n.source)}</span><b>${CAT[n.category]}</b>${n.urgent?'<span class="urg">СРОЧНО</span>':''}${n.translated==='mt'?'<span title="Google Translate">машинный перевод</span>':n.translated?'':'<span>оригинал</span>'}</div>
+  <div class="meta"><span>${hm(n.time)}</span><span>${esc(n.source)}</span><b>${CAT[n.category]}</b>${n.urgent?'<span class="urg">СРОЧНО</span>':''}${n.translated==='mt'?'<span title="Google Translate">машинный перевод с фарси</span>':n.translated?'':'<span>оригинал</span>'}</div>
   <div class="txt">${esc(n.summary)}</div>
   <div class="links"><a href="${esc(n.url)}" target="_blank" rel="noopener">Статья</a>${n.primary?`<a href="${esc(n.primary)}" target="_blank" rel="noopener">Источник</a>`:''}${tn.map(t=>`<span class="tag">#${esc(t)}</span> `).join('')}</div></div>`;
 }

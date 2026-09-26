@@ -44,7 +44,7 @@ const decode = (s = '') => s
 const tag = (x, t) => (x.match(new RegExp(`<${t}[^>]*>([\\s\\S]*?)</${t}>`, 'i')) || [])[1];
 
 async function get(url) {
-  const r = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0 NewsMonitor/0.1' }, signal: AbortSignal.timeout(15000) });
+  const r = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/130 Safari/537.36' }, signal: AbortSignal.timeout(15000) });
   if (!r.ok) throw new Error(`HTTP ${r.status}`);
   return r.text();
 }
@@ -53,19 +53,49 @@ async function fetchRss(src) {
   const xml = await get(src.rss);
   const items = xml.match(/<(item|entry)[\s>][\s\S]*?<\/\1>/gi) || [];
   return items.slice(0, 25).map((it) => {
-    const date = new Date(decode(tag(it, 'pubDate') || tag(it, 'published') || tag(it, 'updated') || ''));
+    let raw = decode(tag(it, 'pubDate') || tag(it, 'published') || tag(it, 'updated') || '');
+    // МАГАТЭ пишет «26-09-25 14:02» (ГГ-ММ-ДД, время Вены)
+    const yy = raw.match(/^(\d\d)-(\d\d)-(\d\d)\s+(\d\d:\d\d)$/);
+    if (yy) raw = `20${yy[1]}-${yy[2]}-${yy[3]}T${yy[4]}:00+02:00`;
+    const date = new Date(raw);
     const link = decode(tag(it, 'link')) || (it.match(/<link[^>]*href="([^"]+)"/i) || [])[1];
     const desc = decode(tag(it, 'description') || tag(it, 'summary') || tag(it, 'content') || '');
     return { source: src.name, title: decode(tag(it, 'title')), text: desc, url: link, time: date.getTime(), html: it };
   });
 }
 
+// Карта свежих новостей сайта (Google News sitemap): заголовок, время, ссылка — прямо с сайта издания.
+async function fetchSitemap(src) {
+  const xml = await get(src.sitemap);
+  const only = src.include ? new RegExp(src.include) : null;
+  return (xml.match(/<url>[\s\S]*?<\/url>/g) || []).map((u) => ({
+    source: src.name,
+    title: decode(tag(u, 'news:title')),
+    text: '',
+    url: decode(tag(u, 'loc')),
+    time: Date.parse(decode(tag(u, 'news:publication_date'))),
+  })).filter((x) => x.title && (!only || only.test(x.url)));
+}
+
+// Новости ВОЗ из открытого API сайта who.int
+async function fetchWho(src) {
+  const j = JSON.parse(await get('https://www.who.int/api/news/newsitems?$orderby=PublicationDateAndTime%20desc&$top=25&$select=Title,PublicationDateAndTime,ItemDefaultUrl'));
+  return j.value.map((n) => ({
+    source: src.name, title: n.Title, text: '',
+    url: 'https://www.who.int/news/item' + n.ItemDefaultUrl, time: Date.parse(n.PublicationDateAndTime),
+  }));
+}
+
+const fetchSite = (src) => src.sitemap ? fetchSitemap(src) : src.type === 'who' ? fetchWho(src) : fetchRss(src);
+
 async function fetchTelegram(src) {
   const html = await get(`https://t.me/s/${src.channel}`);
   const blocks = html.split('tgme_widget_message_wrap').slice(1);
   return blocks.map((b) => {
     const post = (b.match(/data-post="([^"]+)"/) || [])[1];
-    const text = decode((b.match(/tgme_widget_message_text[^>]*>([\s\S]*?)<\/div>/) || [])[1] || '');
+    // подпись канала в конце поста («☑️ @sepah_pasdaran») не нужна
+    const text = decode((b.match(/tgme_widget_message_text[^>]*>([\s\S]*?)<\/div>/) || [])[1] || '')
+      .replace(new RegExp(`[\\s\\p{So}\\uFE0F]*@${src.channel}\\s*$`, 'iu'), '');
     const dt = (b.match(/<time[^>]*datetime="([^"]+)"/) || [])[1];
     const ext = (b.match(/tgme_widget_message_text[\s\S]*?<a [^>]*href="(https?:\/\/(?!t\.me)[^"]+)"/) || [])[1];
     return { source: src.name, title: '', text, url: post ? `https://t.me/${post}` : null, primary: ext, time: dt ? Date.parse(dt) : NaN };
@@ -127,9 +157,22 @@ function heuristicOut(item, category, urgent) {
   return { summary: summary.slice(0, 400), category, urgent, translated: false };
 }
 
+// Текст на фарси/арабском без ключа Claude переводится на английский (Google Translate) —
+// пара «фарси → английский» заметно точнее, чем «фарси → русский».
+async function translateEn(text) {
+  const u = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=en&dt=t&q=${encodeURIComponent(text.slice(0, 1500))}`;
+  const j = await (await fetch(u, { signal: AbortSignal.timeout(10000) })).json();
+  return j[0].map((p) => p[0]).join('');
+}
+
 async function enrich(item) {
+  if (!KEY && /[؀-ۿ]/.test(item.title + item.text)) {
+    try {
+      item = { ...item, title: item.title && await translateEn(item.title), text: await translateEn(item.text), mt: true };
+    } catch (e) { console.error('Перевод:', e.message); }
+  }
   const base = heuristic(item);
-  let out = base;
+  let out = item.mt ? { ...base, translated: 'mt' } : base;
   if (KEY) {
     try {
       const prompt = `Ты помощник редактора международного отдела ТВ-канала. Новость (язык любой):\nИсточник: ${item.source}\nЗаголовок: ${item.title}\nТекст: ${item.text.slice(0, 3000)}\n\nВерни ТОЛЬКО JSON: {"summary":"грамотное изложение на русском в 2-3 предложениях, только главные факты","category":"conflicts|statements|markets|tech","urgent":true|false}\ncategory: conflicts — военные и силовые темы; statements — официальные заявления МАГАТЭ/ООН/ВОЗ и др.; markets — нефть и драгметаллы; tech — технологии и позитивные новости. urgent=true только для катастроф, наводнений, землетрясений, нападений на страны и подобных экстренных событий.`;
@@ -175,7 +218,7 @@ let polling = false;
 async function poll() {
   if (polling) return;
   polling = true;
-  const jobs = [...sources.sites.map((s) => [s, fetchRss]), ...sources.telegram.map((s) => [s, fetchTelegram])];
+  const jobs = [...sources.sites.map((s) => [s, fetchSite]), ...sources.telegram.map((s) => [s, fetchTelegram])];
   const results = await Promise.allSettled(jobs.map(([s, f]) => f(s)));
   const fresh = [];
   results.forEach((r, i) => {
@@ -212,6 +255,9 @@ if (buildAt > -1) {
   if (process.env.PREV_URL) {
     try {
       news = (await (await fetch(process.env.PREV_URL, { signal: AbortSignal.timeout(15000) })).json()).news || [];
+      // только источники из текущего sources.json (например, после отказа от Google News)
+      const names = new Set([...sources.sites, ...sources.telegram].map((x) => x.name));
+      news = news.filter((n) => names.has(n.source) && !/news.google./.test(n.url));
       news.forEach((n) => {
         seen.add(n.id);
         // карточки, собранные до исправления: «Заголовок - apnews.com. Заголовок apnews.com» → «Заголовок»
