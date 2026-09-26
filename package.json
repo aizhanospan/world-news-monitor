@@ -1,0 +1,8 @@
+{
+  "name": "world-news-monitor",
+  "version": "0.1.0",
+  "description": "Монитор мировых новостей для редактора международного отдела",
+  "type": "module",
+  "scripts": { "start": "node server.js" },
+  "engines": { "node": ">=20" }
+}

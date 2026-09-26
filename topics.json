@@ -1,0 +1,10 @@
+[
+  { "id": "us-iran", "name": "США–Иран", "keywords": ["iran", "иран", "tehran", "irgc", "sepah"] },
+  { "id": "saudi-houthi", "name": "Саудовская Аравия–хуситы", "keywords": ["houthi", "хусит", "yemen", "saudi"] },
+  { "id": "gaza-israel", "name": "Газа–Израиль", "keywords": ["gaza", "israel", "idf", "hamas", "газа", "израил"] },
+  { "id": "iaea", "name": "Заявления МАГАТЭ", "keywords": ["iaea", "магатэ", "grossi"] },
+  { "id": "un", "name": "Заявления ООН", "keywords": ["united nations", "оон ", "guterres", "security council"] },
+  { "id": "who", "name": "Заявления ВОЗ", "keywords": ["world health organization", "who chief", "who director", "tedros", "всемирная организация здравоохранения"] },
+  { "id": "oil", "name": "Цены на нефть", "keywords": ["oil price", "brent", "crude", "нефт", "opec"] },
+  { "id": "metals", "name": "Драгметаллы", "keywords": ["gold price", "silver", "platinum", "золот", "серебр"] }
+]

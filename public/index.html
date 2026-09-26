@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Монитор мировых новостей</title>
+<style>
+:root{--bg:#fafaf9;--fg:#1c1917;--mut:#78716c;--line:#e7e5e4;--card:#fff;
+--conflicts:#b45309;--statements:#1d4ed8;--markets:#047857;--tech:#78716c;--urgent:#dc2626;--urgent-bg:#fef2f2;--urgent-fg:#991b1b}
+@media(prefers-color-scheme:dark){:root{--bg:#141413;--fg:#f5f5f4;--mut:#a8a29e;--line:#292524;--card:#1c1917;
+--conflicts:#f59e0b;--statements:#60a5fa;--markets:#34d399;--tech:#a8a29e;--urgent:#f87171;--urgent-bg:#2a1414;--urgent-fg:#fecaca}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif}
+header{position:sticky;top:0;background:var(--bg);border-bottom:1px solid var(--line);padding:12px 16px;z-index:5}
+.wrap{max-width:820px;margin:0 auto}
+h1{font-size:17px;margin:0 0 10px;display:flex;justify-content:space-between;align-items:center}
+h1 small{font-weight:400;color:var(--mut);font-size:12px}
+.row{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
+.chip{border:1px solid var(--line);background:none;color:var(--fg);padding:3px 10px;border-radius:99px;font:inherit;font-size:13px;cursor:pointer}
+.chip.on{background:var(--fg);color:var(--bg);border-color:var(--fg)}
+.chip.u.on{background:var(--urgent);border-color:var(--urgent);color:#fff}
+main{padding:12px 16px 40px}
+.card{background:var(--card);border:1px solid var(--line);border-left:4px solid var(--c);border-radius:6px;padding:10px 14px;margin-bottom:10px}
+.card.urgent{--c:var(--urgent);border-color:var(--urgent);background:var(--urgent-bg)}
+.card.urgent .txt{color:var(--urgent-fg);font-weight:500}
+.card.new{animation:f 1.2s}@keyframes f{from{background:#fef9c3}}
+.meta{display:flex;flex-wrap:wrap;gap:8px;align-items:center;font-size:12px;color:var(--mut)}
+.meta b{color:var(--c);font-weight:600}
+.urg{background:var(--urgent);color:#fff;padding:0 6px;border-radius:3px;font-weight:600}
+.txt{margin:4px 0 6px}
+.links a{font-size:13px;color:var(--statements);margin-right:12px;text-decoration:none}
+.links a:hover{text-decoration:underline}
+.tag{color:var(--mut)}
+.empty{color:var(--mut);text-align:center;padding:40px 0}
+</style>
+</head>
+<body>
+<header><div class="wrap">
+  <h1>Мировые новости <small id="st"></small></h1>
+  <div class="row" id="cats"></div>
+  <div class="row" id="tps"></div>
+</div></header>
+<main><div class="wrap" id="feed"></div></main>
+<script>
+const CAT={conflicts:'Конфликты',statements:'Заявления',markets:'Рынки',tech:'Технологии / позитив'};
+let news=[],topics=[],fc=new Set(),ft=new Set(),onlyUrgent=false,ai=true;
+const $=s=>document.querySelector(s);
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const hm=t=>new Date(t).toLocaleString('ru-RU',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
+
+function chips(){
+  $('#cats').innerHTML=`<button class="chip u ${onlyUrgent?'on':''}" data-u>Срочно</button>`+
+    Object.entries(CAT).map(([k,v])=>`<button class="chip ${fc.has(k)?'on':''}" data-c="${k}">${v}</button>`).join('');
+  $('#tps').innerHTML=topics.map(t=>`<button class="chip ${ft.has(t.id)?'on':''}" data-t="${t.id}">${esc(t.name)}</button>`).join('');
+}
+function card(n,isNew){
+  const tn=n.tags.map(id=>(topics.find(t=>t.id===id)||{}).name).filter(Boolean);
+  return `<div class="card${n.urgent?' urgent':''}${isNew?' new':''}" style="--c:var(--${n.category})">
+  <div class="meta"><span>${hm(n.time)}</span><span>${esc(n.source)}</span><b>${CAT[n.category]}</b>${n.urgent?'<span class="urg">СРОЧНО</span>':''}${n.translated==='mt'?'<span title="Google Translate">машинный перевод</span>':n.translated?'':'<span>оригинал</span>'}</div>
+  <div class="txt">${esc(n.summary)}</div>
+  <div class="links"><a href="${esc(n.url)}" target="_blank" rel="noopener">Статья</a>${n.primary?`<a href="${esc(n.primary)}" target="_blank" rel="noopener">Источник</a>`:''}${tn.map(t=>`<span class="tag">#${esc(t)}</span> `).join('')}</div></div>`;
+}
+function render(newId){
+  const list=news.filter(n=>(!onlyUrgent||n.urgent)&&(!fc.size||fc.has(n.category))&&(!ft.size||n.tags.some(t=>ft.has(t))));
+  $('#feed').innerHTML=list.length?list.map(n=>card(n,n.id===newId)).join(''):'<div class="empty">Пока нет новостей. Первый опрос источников занимает до минуты.</div>';
+  $('#st').textContent=`${list.length} из ${news.length}${ai?'':' · без перевода'}`;
+}
+document.addEventListener('click',e=>{
+  const b=e.target.closest('.chip');if(!b)return;
+  if('u' in b.dataset)onlyUrgent=!onlyUrgent;
+  else{const s=b.dataset.c?fc:ft,k=b.dataset.c||b.dataset.t;s.has(k)?s.delete(k):s.add(k);}
+  chips();render();
+});
+async function load(){
+  const j=await(await fetch('/api/news')).json();
+  news=j.news;topics=j.topics;ai=j.ai;chips();render();
+}
+load();
+const es=new EventSource('/api/stream');
+es.onmessage=e=>{
+  const n=JSON.parse(e.data);
+  if(news.some(x=>x.id===n.id))return;
+  news.push(n);news.sort((a,b)=>b.time-a.time);render(n.id);
+};
+</script>
+</body>
+</html>
