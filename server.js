@@ -22,6 +22,7 @@ const TG_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 const TG_CHAT = process.env.TELEGRAM_CHAT_ID;
 const MAX_AGE = 24 * 3600 * 1000;
 const DB = path.join(__dirname, 'data', 'news.json');
+fs.mkdirSync(path.dirname(DB), { recursive: true });
 
 const sources = read('sources.json');
 const topics = read('topics.json');
@@ -201,13 +202,33 @@ async function poll() {
   polling = false;
 }
 
+const payload = () => JSON.stringify({ news: [...news].sort((a, b) => b.time - a.time), topics: topics.map(({ id, name }) => ({ id, name })), ai: !!KEY, updated: Date.now() });
+
+// ---------- Сборка статической версии (GitHub Pages): node server.js --build <папка> ----------
+const buildAt = process.argv.indexOf('--build');
+if (buildAt > -1) {
+  const out = path.resolve(process.argv[buildAt + 1] || 'site');
+  // прошлая лента берётся с уже опубликованного сайта, чтобы новости не терялись между запусками
+  if (process.env.PREV_URL) {
+    try {
+      news = (await (await fetch(process.env.PREV_URL, { signal: AbortSignal.timeout(15000) })).json()).news || [];
+      news.forEach((n) => seen.add(n.id));
+    } catch (e) { console.error('Прошлая лента:', e.message); }
+  }
+  await poll();
+  fs.cpSync(path.join(__dirname, 'public'), out, { recursive: true });
+  fs.writeFileSync(path.join(out, 'news.json'), payload());
+  console.log('Сайт собран в', out);
+  process.exit(0);
+}
+
 // ---------- HTTP ----------
 const mime = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.css': 'text/css' };
 http.createServer((req, res) => {
   const u = new URL(req.url, 'http://x');
   if (u.pathname === '/api/news') {
     res.writeHead(200, { 'content-type': 'application/json' });
-    return res.end(JSON.stringify({ news: [...news].sort((a, b) => b.time - a.time), topics: topics.map(({ id, name }) => ({ id, name })), ai: !!KEY }));
+    return res.end(payload());
   }
   if (u.pathname === '/api/stream') {
     res.writeHead(200, { 'content-type': 'text/event-stream', 'cache-control': 'no-cache', connection: 'keep-alive' });

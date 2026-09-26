@@ -63,7 +63,7 @@ function card(n,isNew){
 function render(newId){
   const list=news.filter(n=>(!onlyUrgent||n.urgent)&&(!fc.size||fc.has(n.category))&&(!ft.size||n.tags.some(t=>ft.has(t))));
   $('#feed').innerHTML=list.length?list.map(n=>card(n,n.id===newId)).join(''):'<div class="empty">Пока нет новостей. Первый опрос источников занимает до минуты.</div>';
-  $('#st').textContent=`${list.length} из ${news.length}${ai?'':' · без перевода'}`;
+  $('#st').textContent=`${list.length} из ${news.length}${ai?'':' · без перевода'}${updated?' · обновлено '+hm(updated):''}`;
 }
 document.addEventListener('click',e=>{
   const b=e.target.closest('.chip');if(!b)return;
@@ -71,17 +71,25 @@ document.addEventListener('click',e=>{
   else{const s=b.dataset.c?fc:ft,k=b.dataset.c||b.dataset.t;s.has(k)?s.delete(k):s.add(k);}
   chips();render();
 });
+// Локально — живой сервер (/api/news + поток). На GitHub Pages — готовый news.json, перечитывается раз в 2 минуты.
+let updated=null;
 async function load(){
-  const j=await(await fetch('/api/news')).json();
-  news=j.news;topics=j.topics;ai=j.ai;chips();render();
+  let r=await fetch('/api/news').catch(()=>null),live=!!(r&&r.ok);
+  if(!live)r=await fetch('news.json?'+Date.now());
+  const j=await r.json();
+  const known=new Set(news.map(n=>n.id)),first=news.length?j.news.find(n=>!known.has(n.id)):null;
+  news=j.news;topics=j.topics;ai=j.ai;updated=j.updated;chips();render(first&&first.id);
+  return live;
 }
-load();
-const es=new EventSource('/api/stream');
-es.onmessage=e=>{
-  const n=JSON.parse(e.data);
-  if(news.some(x=>x.id===n.id))return;
-  news.push(n);news.sort((a,b)=>b.time-a.time);render(n.id);
-};
+load().then(live=>{
+  if(!live)return setInterval(load,120000);
+  const es=new EventSource('/api/stream');
+  es.onmessage=e=>{
+    const n=JSON.parse(e.data);
+    if(news.some(x=>x.id===n.id))return;
+    news.push(n);news.sort((a,b)=>b.time-a.time);render(n.id);
+  };
+});
 </script>
 </body>
 </html>

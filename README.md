@@ -21,3 +21,6 @@ npm start
 
 ## Не реализовано (открытые вопросы PRD)
 Поиск/архив, интерфейс управления темами, Telegram-каналы без публичного веб-просмотра (нужен Telethon/MTProto).
+
+## Публикация (GitHub Pages)
+Лента опубликована на `https://aizhanospan.github.io/world-news-monitor/`. Раз в ~10 минут GitHub Actions (`.github/workflows/pages.yml`) собирает новости (`node server.js --build site`) и выкладывает страницу. Ключи (`ANTHROPIC_API_KEY`, `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`) задаются в Settings → Secrets and variables → Actions.
