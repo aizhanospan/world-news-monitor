@@ -9,7 +9,6 @@
     { "name": "МАГАТЭ", "rss": "https://www.iaea.org/feeds/topnews" }
   ],
   "telegram": [
-    { "name": "BBC Русская служба (TG)", "channel": "bbcrussian" },
     { "name": "IDF (TG)", "channel": "idfofficial" },
     { "name": "КСИР (TG)", "channel": "sepah_pasdaran" }
   ]
